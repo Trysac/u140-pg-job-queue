@@ -1,28 +1,12 @@
-# Security practices
+# Security Model
 
-How this repository keeps the package and its users safe. The disclosure policy is in
-[../SECURITY.md](../SECURITY.md).
+## Defended
 
-## Secrets
+- **SQL Injection**: All parameters (queue names, payloads, attempts, timestamps) are bound via parameterized queries. Table identifiers are validated against `^[a-z_][a-z0-9_]{0,62}$` before interpolation into DDL or queries.
+- **Denial of Service**: Payload sizes are hard-capped at 65,536 bytes to prevent storage-based resource exhaustion.
+- **Storage Growth**: Error messages are truncated to 1,000 UTF-16 code units before storage in the database.
 
-- No secrets, tokens or credentials in the repository, commit history, logs or prompts.
-- `gitleaks` runs as the last step of `npm run check` and as a dedicated CI job. Its configuration is
-  `.gitleaks.toml`.
-- Publishing credentials live only in the CI secret store or the maintainer's local npm configuration.
+## Not Defended
 
-## Dependencies
-
-- Runtime dependencies are avoided; development dependencies are limited to the toolchain listed in
-  [STACK.md](STACK.md).
-- Dependabot opens weekly updates for npm packages and GitHub Actions.
-- Commit the generated `package-lock.json` so installs are reproducible.
-
-## Code
-
-- No `eval`, dynamic `Function` construction or shelling out from library code.
-- Inputs from callers are validated and rejected with explicit errors.
-
-## Publishing
-
-- Packages are published from a clean checkout after `npm run check` passes.
-- Only `dist/` is included in the published tarball.
+- **Application logic errors**: The handler function in `processBatch` is responsible for its own security concerns.
+- **Database permissions**: The library assumes the provided `Db` client has the necessary permissions to `INSERT`, `UPDATE`, and `SELECT` on the designated table.
