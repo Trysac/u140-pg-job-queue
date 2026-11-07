@@ -1,0 +1,11 @@
+# Secret scanning configuration. Extends the default gitleaks rules and skips build output and dependencies.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated or third-party directories"
+paths = [
+  '''(^|[/\\])node_modules[/\\]''',
+  '''(^|[/\\])dist[/\\]''',
+  '''(^|[/\\])coverage[/\\]''',
+]
