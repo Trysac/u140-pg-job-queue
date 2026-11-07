@@ -1,30 +1,17 @@
 # Architecture
 
-## Overview
+`@trysac/pg-job-queue` provides a minimal, dependable job queue engine over PostgreSQL with zero dependencies.
 
-`@trysac/pg-job-queue` is a small, dependency-free TypeScript library published to npm as ES modules with type
-declarations. Postgres job queue core for TypeScript: exact SKIP LOCKED SQL behind an injected client, leases, attempt fencing, exponential backoff and an in-memory twin
+## Core Concepts
 
-## Modules
+1. **`FOR UPDATE SKIP LOCKED` Claiming**:
+   Multiple workers claim jobs simultaneously without blocking each other. The claim query selects candidate jobs (where state is `ready` or expired `running` with remaining attempts) and updates them to `running`, incrementing `attempts` and setting `locked_until` in a single atomic SQL statement.
 
-| Module | Responsibility |
-|---|---|
-| `src/index.ts` | Public API. Everything consumers import is exported from here. |
+2. **Attempt Fencing**:
+   Completion (`complete`) and failure (`fail`) updates check `WHERE id = $1 AND state = 'running' AND attempts = $2`. If a worker took longer than `leaseMs` and another worker reclaimed the job (incrementing attempts), the slow worker's update cleanly affects 0 rows, preventing stale worker writes.
 
-Add a row when you add a module. Internal modules are not re-exported unless they are part of the public API.
+3. **Exponential Backoff**:
+   Failed jobs remain in or transition back to `ready` with `run_at` rescheduled based on exponential backoff: `Math.min(maxMs, baseMs * 2 ** (attempt - 1))`. When `attempts >= max_attempts`, the state becomes `dead`.
 
-## Boundaries
-
-- No runtime dependencies by default; any addition is justified in [STACK.md](STACK.md).
-- No I/O at import time. Functions are pure unless their documentation says otherwise.
-- Errors are thrown as built-in error types (`TypeError`, `RangeError`) with actionable messages.
-
-## Build and distribution
-
-`npm run build` compiles `src/` to `dist/` with `tsconfig.build.json`. Only `dist/` is published
-(`files` in `package.json`).
-
-## Decisions
-
-Architectural decisions are recorded in [decisions/](decisions/), starting with
-[0001](decisions/0001-record-architecture-decisions.md).
+4. **Memory Store Twin**:
+   `createMemoryStore()` replicates table semantics, sorting orders, attempt fencing, and concurrency isolation so domain tests run fast and deterministically without a live PostgreSQL instance.

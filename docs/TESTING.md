@@ -1,28 +1,10 @@
-# Testing
+# Testing Strategy
 
-## Tools
+Tests cover the following areas:
 
-- [Vitest](https://vitest.dev/) runs the suites in `test/`.
-- Coverage is collected with V8 (`@vitest/coverage-v8`) over `src/`.
-
-## Commands
-
-```sh
-npm test            # vitest run --coverage
-npx vitest          # watch mode while developing
-npm run check       # every gate, including tests
-```
-
-## Rules
-
-- Coverage must stay at or above 80 % for lines, branches, functions and statements (`vitest.config.ts`).
-  Lowering the thresholds is not allowed.
-- Test through the public entry point (`src/index.ts`) and assert observable behavior: return values,
-  thrown errors and their messages.
-- Each bug fix adds a test that fails without the fix.
-- Tests are deterministic: no network, no real clock or randomness without injection, no shared state between
-  tests. Temporary files go to the OS temp directory and are removed by the test.
-
-## Reports
-
-Coverage reports are written to `coverage/` (text summary and `lcov`). The folder is ignored by git.
+- `schemaSql and identifier validation`: Verifies correct DDL generation and identifier validation/rejection.
+- `createPgStore`: Tests claim SQL generation, parameter binding, row mapping, and handling of database interaction errors.
+- `createMemoryStore`: Simulates concurrent claim behavior, priority sorting, delay handling, attempt fencing, and lease expiration.
+- `Validation and Edge Cases`: Validates payload limits (65,536 bytes), queue name constraints, and data type validation (e.g., `maxAttempts` or `priority`).
+- `processBatch`: Verifies batch claiming, handler execution, complete/fail lifecycle, and error truncation logic.
+- `backoffMs`: Tests exponential backoff calculation, including `maxMs` and `baseMs` customization.

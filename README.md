@@ -1,55 +1,53 @@
-# pg-job-queue
+# @trysac/pg-job-queue
 
-[![npm version](https://img.shields.io/npm/v/@trysac/pg-job-queue.svg)](https://www.npmjs.com/package/@trysac/pg-job-queue)
-[![license: MIT](https://img.shields.io/npm/l/@trysac/pg-job-queue.svg)](LICENSE)
-[![CI](https://github.com/Trysac/u140-pg-job-queue/actions/workflows/ci.yml/badge.svg)](https://github.com/Trysac/u140-pg-job-queue/actions/workflows/ci.yml)
+Postgres job queue core for TypeScript: exact `SKIP LOCKED` SQL behind an injected client, leases, attempt fencing, exponential backoff, and an in-memory twin.
 
-Postgres job queue core for TypeScript: exact SKIP LOCKED SQL behind an injected client, leases, attempt fencing, exponential backoff and an in-memory twin
+## The Problem
 
-## Problem
+Teams that already run Postgres add Redis only for background jobs, or write a jobs table whose claim query double-processes work under concurrency and never recovers jobs from crashed workers. The correct pattern (`FOR UPDATE SKIP LOCKED`, leases, attempt fencing) is well known but easy to get subtly wrong. This library ships the exact SQL behind an injected client plus an in-memory store with the same semantics for tests.
 
-Describe in two or three sentences the concrete problem this utility solves, who hits it, and why existing
-packages do not solve it well. Keep it factual; link to an issue or decision record when there is one.
+## Installation
 
-## Install
-
-```sh
+```bash
 npm install @trysac/pg-job-queue
 ```
 
-Requires Node.js 20 or newer. The package ships ES modules with TypeScript declarations.
+## Usage Example
 
-## Usage
+```typescript
+import { createMemoryStore, processBatch } from "@trysac/pg-job-queue";
 
-```ts
-import { greet } from "@trysac/pg-job-queue";
+const store = createMemoryStore();
+await store.enqueue({ queue: "emails", payload: { to: "ada@example.com" } });
 
-// Build a greeting; surrounding whitespace is ignored.
-const message = greet("  Ada ");
-console.log(message); // "Hello, Ada!"
-
-try {
-  greet("   ");
-} catch (error) {
-  console.error((error as Error).message); // "name must not be empty"
-}
+await processBatch(
+  store,
+  "emails",
+  async (job) => console.log("Processing", job.payload),
+  { now: new Date(), leaseMs: 30_000, batchSize: 10 }
+);
 ```
 
-## API
+## Public API Summary
 
-| Export | Signature | Description |
-|---|---|---|
-| `greet` | `(name: string) => string` | Placeholder API; replace it with the real one. |
+- `schemaSql(table?: string): string`: Returns the DDL SQL string to initialize the queue table and indexes.
+- `createPgStore(db: Db, opts?: { table?: string }): QueueStore`: Creates a QueueStore backed by a PostgreSQL database connection.
+- `createMemoryStore(): MemoryStore`: Creates an in-memory queue store with the exact semantics of the PostgreSQL implementation.
+- `processBatch(store, queue, handler, opts)`: Claims a batch of jobs and processes them using the given handler.
+- `backoffMs(attempt, opts?)`: Calculates exponential backoff in milliseconds: `Math.min(maxMs, baseMs * 2 ** (attempt - 1))`.
+- `QueueError`: Typed error class for queue operations (codes: `invalid_identifier`, `invalid_job`, `payload_too_large`).
 
-## Development
+### Limits & Options
 
-```sh
-npm install
-npm run check   # lint, format, types, tests with coverage, docs, secrets
-```
+- **Payloads**: Maximum size of 65,536 bytes.
+- **Identifiers**: Matches `^[a-z_][a-z0-9_]{0,62}$`.
+- **Error messages**: Truncated to 1,000 UTF-16 code units.
+- **Dependencies**: Zero runtime dependencies; expects a `Db` interface compatible with `node-postgres`.
 
-See [AGENTS.md](AGENTS.md) for the full command list and [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow.
+## Why not <best-known alternative>
 
-## License
+Existing solutions like `pg-boss` or `graphile-worker` are often heavy; this library provides a minimal, auditable core with exact SQL that is easier to inspect and maintain for specific needs.
 
-[MIT](LICENSE) © 2026 Miguel Gomez
+## Security
+
+See [docs/SECURITY.md](docs/SECURITY.md) for the threat model and limits.
