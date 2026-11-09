@@ -1,5 +1,6 @@
-# Thin wrapper over the local gates (`npm run check`). Disabled while the repository is private:
-# the factory runs the same gates locally. Factory-owned file: agents must not edit it.
+# CI for this repository lives in Trysac/factory-ci (reusable workflow, typescript): it re-runs this repository's own
+# gates. Changing the factory's CI is one release there, not one pull request per repository.
+# Factory-owned file: agents must not edit it.
 name: CI
 
 on:
@@ -10,35 +11,11 @@ on:
 permissions:
   contents: read
 
-jobs:
-  check:
-    if: ${{ !github.event.repository.private }}
-    name: check (${{ matrix.os }}, node ${{ matrix.node }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        node: [22, 24] # oldest supported LTS in CI and the factory's local version
-    env:
-      FABRICA_ALLOW_MISSING_GITLEAKS: "1"
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: ${{ matrix.node }}
-      - run: npm install --no-audit --no-fund
-      - run: npm run check
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
-  gitleaks:
-    if: ${{ !github.event.repository.private }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Only needed if the repository belongs to a GitHub organization (free for personal accounts).
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+jobs:
+  ci:
+    uses: Trysac/factory-ci/.github/workflows/typescript.yml@v1
+    secrets: inherit
