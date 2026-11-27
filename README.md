@@ -8,9 +8,15 @@ Teams that already run Postgres add Redis only for background jobs, or write a j
 
 ## Installation
 
-```bash
-npm install @trysac/pg-job-queue
+Not published to npm yet. Build it from a clone, then install it from the local path:
+
+```sh
+git clone https://github.com/Trysac/u140-pg-job-queue.git
+cd u140-pg-job-queue && npm ci && npm run build
+cd ../your-project && npm install ../u140-pg-job-queue
 ```
+
+Imports keep the package name: `import { ... } from "@trysac/pg-job-queue"`.
 
 ## Usage Example
 
